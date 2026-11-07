@@ -1,13 +1,7 @@
 #!/usr/bin/env bash
-# ==============================================================================
-# BadBuilder v3.0.0 - Xbox 360 BadUpdate USB Builder
-# Linux native shell version (no .NET required)
-# Fork: https://github.com/raphaelmaria/BadBuilder
-# ==============================================================================
 set -euo pipefail
 IFS=$'\n\t'
 
-# ── Colours ───────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 DKGREEN='\033[0;32m'
@@ -17,23 +11,21 @@ GRAY='\033[0;90m'
 BOLD='\033[1m'
 RESET='\033[0m'
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
 WORK_DIR="${SCRIPT_DIR}/Work"
 DOWNLOAD_DIR="${WORK_DIR}/Downloads"
 STAGING_DIR="${WORK_DIR}/Staging"
 
-# ── Content source ────────────────────────────────────────────────────────────
 CONTENT_URL="https://archive.org/download/abapendrive.-7z/ABApendrive.7z"
+REPO_URL="https://github.com/axy0n-qli/BadBuilder-linux"
 
-# ── Config state ──────────────────────────────────────────────────────────────
 TARGET_DISK_ID=""
 TARGET_DISK_NAME=""
 TARGET_DISK_SIZE_GB=""
 TARGET_DISK_PATH=""
 MOUNT_POINT=""
+UPDATE_STATUS="${BADBUILDER_UPDATE_STATUS:-Not checked}"
 
-# ── TUI helpers ───────────────────────────────────────────────────────────────
 render_header() {
     clear
     echo -e "${DKGREEN}██████╗  █████╗ ██████╗ ██████╗ ██╗   ██╗██╗██╗     ██████╗ ███████╗██████╗${RESET}"
@@ -53,25 +45,24 @@ render_header() {
 show_summary() {
     echo -e "┌──────────────────────────────────────────────────────────┐"
     printf  "│  %-16s  %-38s│\n" "Drive" \
-        "${TARGET_DISK_NAME:-Nenhum selecionado} ${TARGET_DISK_PATH:+($TARGET_DISK_PATH)}"
-    printf  "│  %-16s  %-38s│\n" "Fonte" "archive.org/ABApendrive"
+        "${TARGET_DISK_NAME:-None selected} ${TARGET_DISK_PATH:+($TARGET_DISK_PATH)}"
+    printf  "│  %-16s  %-38s│\n" "Source" "archive.org/ABApendrive"
+    printf  "│  %-16s  %-38s│\n" "Update" "$UPDATE_STATUS"
     echo -e "└──────────────────────────────────────────────────────────┘"
     echo ""
 }
 
-# All user-facing messages go to stderr so they never corrupt $() captures
 msg_info()  { echo -e "${YELLOW}[*]${RESET} $*" >&2; }
 msg_ok()    { echo -e "${GREEN}[+]${RESET} $*" >&2; }
 msg_warn()  { echo -e "${ORANGE}[!]${RESET} $*" >&2; }
 msg_err()   { echo -e "${RED}[-]${RESET} $*" >&2; }
 
 pause() {
-    local msg="${1:-Pressione Enter para continuar...}"
+    local msg="${1:-Press Enter to continue...}"
     echo -e "\n${GRAY}${msg}${RESET}"
     read -r _
 }
 
-# Numbered selection menu → sets REPLY_INDEX (0-based). Returns 255 on last option (Back).
 prompt_menu() {
     local title="$1"; shift
     local options=("$@")
@@ -82,42 +73,41 @@ prompt_menu() {
     done
     echo ""
     while true; do
-        read -rp "Selecione [1-${#options[@]}]: " choice
+        read -rp "Select [1-${#options[@]}]: " choice
         if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#options[@]} )); then
             REPLY_INDEX=$(( choice - 1 ))
             return 0
         fi
-        echo -e "${RED}Opção inválida.${RESET}"
+        echo -e "${RED}Invalid option.${RESET}"
     done
 }
 
 confirm() {
     while true; do
-        read -rp "${1} [s/N]: " yn
+        read -rp "${1} [y/N]: " yn
         case "${yn,,}" in
-            s|sim|y|yes) return 0 ;;
-            n|nao|não|no|"") return 1 ;;
+            y|yes) return 0 ;;
+            n|no|"") return 1 ;;
         esac
     done
 }
 
-# ── Dependency check ──────────────────────────────────────────────────────────
 check_deps() {
     local missing=()
-    for cmd in lsblk parted mkfs.fat mount umount curl 7z; do
+    for cmd in lsblk parted mkfs.fat mount umount curl jq 7z; do
         command -v "$cmd" &>/dev/null || missing+=("$cmd")
     done
     if [[ ${#missing[@]} -gt 0 ]]; then
-        msg_err "Dependências ausentes:"
+        msg_err "Missing dependencies:"
         for dep in "${missing[@]}"; do echo "    - $dep"; done
         echo ""
-        echo "Debian/Ubuntu: sudo apt install util-linux dosfstools parted curl p7zip-full"
-        echo "Fedora/RHEL:   sudo dnf install util-linux dosfstools parted curl p7zip p7zip-plugins"
+        echo "Debian/Ubuntu: sudo apt install util-linux dosfstools parted curl jq p7zip-full"
+        echo "Fedora/RHEL:   sudo dnf install util-linux dosfstools parted curl jq p7zip p7zip-plugins"
+        echo "Arch/Omarchy:  sudo pacman -S util-linux dosfstools parted curl jq unzip p7zip unrar"
         exit 1
     fi
 }
 
-# ── Disk helpers ──────────────────────────────────────────────────────────────
 list_disks() {
     lsblk -J -d -b -o NAME,SIZE,TYPE,TRAN,MODEL,RM 2>/dev/null | \
     jq -r '.blockdevices[] |
@@ -127,7 +117,7 @@ list_disks() {
           .name,
           (.model // .name | ltrimstr(" ") | rtrimstr(" ")),
           ((.size // 0) | tonumber / 1073741824 | . * 100 | round / 100 | tostring),
-          (if .rm == true or .rm == 1 or (.rm | tostring) == "1" or .tran == "usb" then "Removível" else "Fixo" end),
+          (if .rm == true or .rm == 1 or (.rm | tostring) == "1" or .tran == "usb" then "Removable" else "Fixed" end),
           ("/dev/" + .name)
         ] | join("|")'
 }
@@ -148,10 +138,10 @@ format_fat32() {
     local dev="$1"
     local devname; devname="$(basename "$dev")"
 
-    msg_info "Desmontando partições em $dev..."
+    msg_info "Unmounting partitions on $dev..."
     umount_partitions "$dev"
 
-    msg_info "Escrevendo tabela de partições..."
+    msg_info "Writing partition table..."
     parted -s "$dev" mklabel msdos
     parted -s "$dev" mkpart primary fat32 1MiB 100%
     parted -s "$dev" set 1 lba on
@@ -166,26 +156,25 @@ format_fat32() {
         fi
         sleep 0.5
     done
-    [[ -n "$part" ]] || { msg_err "Partição ${dev}1 não apareceu."; exit 1; }
+    [[ -n "$part" ]] || { msg_err "Partition ${dev}1 did not appear."; exit 1; }
 
-    msg_info "Formatando $part como FAT32..."
+    msg_info "Formatting $part as FAT32..."
     mkfs.fat -F 32 -n "BADUPDATE" "$part"
 
     MOUNT_POINT="/tmp/badbuilder_${devname}"
     umount "$MOUNT_POINT" 2>/dev/null || true
     mkdir -p "$MOUNT_POINT"
     mount "$part" "$MOUNT_POINT"
-    msg_ok "Drive formatado e montado em $MOUNT_POINT"
+    msg_ok "Drive formatted and mounted at $MOUNT_POINT"
 }
 
-# ── File helpers ──────────────────────────────────────────────────────────────
 first_subdir() {
     find "$1" -mindepth 1 -maxdepth 1 -type d | sort | head -1
 }
 
 copy_dir_contents() {
     local src="$1" dst="$2"
-    [[ -d "$src" ]] || { msg_err "Diretório de origem não encontrado: $src"; exit 1; }
+    [[ -d "$src" ]] || { msg_err "Source directory not found: $src"; exit 1; }
     mkdir -p "$dst"
     cp -r "$src"/. "$dst"/
 }
@@ -194,10 +183,10 @@ eject_drive() {
     local dev="$1"
     local mnt="$2"
 
-    msg_info "Sincronizando dados no disco..."
+    msg_info "Syncing data to disk..."
     sync
 
-    msg_info "Desmontando o pendrive..."
+    msg_info "Unmounting the USB drive..."
     umount "$mnt" 2>/dev/null || true
     rmdir  "$mnt" 2>/dev/null || true
     MOUNT_POINT=""
@@ -210,48 +199,79 @@ eject_drive() {
     fi
 }
 
-# ── Content downloader ────────────────────────────────────────────────────────
-download_pendrive_content() {
+check_update() {
+    [[ "${BADBUILDER_UPDATED:-0}" == "1" ]] && return 0
+
+    if [[ ! -f "${SCRIPT_DIR}/update.sh" ]]; then
+        UPDATE_STATUS="update.sh missing"
+        return 0
+    fi
+
+    local rc=0
+    bash "${SCRIPT_DIR}/update.sh" || rc=$?
+
+    case $rc in
+        0)  UPDATE_STATUS="Up to date" ;;
+        10)
+            msg_ok "Restarting BadBuilder with the new version..."
+            sleep 2
+            export BADBUILDER_UPDATED=1 BADBUILDER_UPDATE_STATUS="Updated (restarted)"
+            exec bash "${SCRIPT_DIR}/BadBuilder.sh" "$@"
+            ;;
+        *)  UPDATE_STATUS="Check unavailable" ;;
+    esac
+    sleep 1
+}
+
+download_file() {
+    local url="$1" dest="$2"
+    local final_url
+
+    msg_info "Downloading: ${url}"
+    if ! final_url="$(curl -fL --retry 3 --progress-bar -o "$dest" -w '%{url_effective}' "$url")"; then
+        msg_err "Download failed for ${url}. Check your internet connection."
+        return 1
+    fi
+    if [[ -n "$final_url" && "$final_url" != "$url" ]]; then
+        msg_info "Redirected to: ${final_url}"
+    fi
+    msg_ok "Download complete: ${dest}"
+}
+
+download_usb_content() {
     local usb="$1"
     local archive_file="${DOWNLOAD_DIR}/ABApendrive.7z"
-    local stage="${STAGING_DIR}/pendrive"
+    local stage="${STAGING_DIR}/usb"
     mkdir -p "$DOWNLOAD_DIR" "$STAGING_DIR"
 
-    msg_info "Baixando conteúdo do pendrive..."
-    msg_info "Fonte: ${CONTENT_URL}"
-    if ! curl -fL --retry 3 --progress-bar -o "$archive_file" "$CONTENT_URL"; then
-        msg_err "Falha no download. Verifique sua conexão com a internet."
-        exit 1
-    fi
-    msg_ok "Download concluído."
+    msg_info "Downloading USB drive content..."
+    download_file "$CONTENT_URL" "$archive_file" || exit 1
 
-    msg_info "Extraindo arquivos..."
+    msg_info "Extracting files..."
     rm -rf "$stage"
     mkdir -p "$stage"
     if ! 7z x "$archive_file" -o"$stage" -y > /dev/null; then
-        msg_err "Falha ao extrair o arquivo. O download pode estar corrompido."
+        msg_err "Failed to extract the archive. The download may be corrupted."
         exit 1
     fi
 
-    # If archive wraps content in a top-level folder, descend into it
     local root_dir; root_dir="$(first_subdir "$stage")"
     local src_dir="$stage"; [[ -n "$root_dir" ]] && src_dir="$root_dir"
 
-    msg_ok "Copiando arquivos para o pendrive..."
+    msg_ok "Copying files to the USB drive..."
     copy_dir_contents "$src_dir" "$usb"
 }
 
-# ── Menu: Configure drive ─────────────────────────────────────────────────────
 menu_configure_drive() {
     render_header
-    msg_info "Escaneando discos..."
+    msg_info "Scanning disks..."
     local disk_lines=()
     while IFS= read -r line; do
         disk_lines+=("$line")
     done < <(list_disks)
 
     if [[ ${#disk_lines[@]} -eq 0 ]]; then
-        msg_err "Nenhum disco encontrado."
+        msg_err "No disks found."
         pause; return
     fi
 
@@ -260,9 +280,9 @@ menu_configure_drive() {
         IFS='|' read -r did dname dsize dtype dpath <<< "$line"
         labels+=("${dname} (${dsize} GB) - ${dtype} [${dpath}]")
     done
-    labels+=("Voltar")
+    labels+=("Back")
 
-    prompt_menu "Selecione o drive alvo  [TODOS OS DADOS SERÃO APAGADOS]" "${labels[@]}"
+    prompt_menu "Select the target drive  [ALL DATA WILL BE ERASED]" "${labels[@]}"
 
     if (( REPLY_INDEX == ${#disk_lines[@]} )); then return; fi
 
@@ -272,71 +292,65 @@ menu_configure_drive() {
     pause
 }
 
-# ── Menu: Install ─────────────────────────────────────────────────────────────
 menu_install() {
     render_header
     show_summary
 
     if [[ -z "$TARGET_DISK_PATH" ]]; then
-        msg_err "Nenhum drive selecionado."
+        msg_err "No drive selected."
         pause; return
     fi
 
-    echo -e "${ORANGE}${BOLD}AVISO:${RESET} Todos os dados em ${TARGET_DISK_NAME} (${TARGET_DISK_PATH}) serão apagados."
-    if ! confirm "Confirma a formatação de ${TARGET_DISK_PATH}?"; then
+    echo -e "${ORANGE}${BOLD}WARNING:${RESET} All data on ${TARGET_DISK_NAME} (${TARGET_DISK_PATH}) will be erased."
+    if ! confirm "Confirm formatting of ${TARGET_DISK_PATH}?"; then
         return
     fi
 
     echo ""
 
-    # 1. Format
     format_fat32 "$TARGET_DISK_PATH"
     echo ""
 
-    # 2. Download & copy
-    download_pendrive_content "$MOUNT_POINT"
+    download_usb_content "$MOUNT_POINT"
     echo ""
 
-    # 3. Info files
     echo "USB Storage Device" > "${MOUNT_POINT}/name.txt"
     {
         echo "This drive was created with BadBuilder by Pdawg."
-        echo "https://github.com/raphaelmaria/BadBuilder"
+        echo "${REPO_URL}"
         echo ""
-        echo "Source: ${REPO_OWNER}/${REPO_NAME}/${REPO_CONTENT_PATH}"
+        echo "Source: ${CONTENT_URL}"
         echo "Drive:  ${TARGET_DISK_NAME} (${TARGET_DISK_PATH})"
     } > "${MOUNT_POINT}/info.txt"
 
-    # 4. Eject
     local _dev="$TARGET_DISK_PATH"
     local _mnt="$MOUNT_POINT"
     eject_drive "$_dev" "$_mnt"
 
-    # 5. Success banner
     echo ""
     echo -e "${GREEN}┌──────────────────────────────────────────────────────────────┐${RESET}"
     echo -e "${GREEN}│                                                              │${RESET}"
-    echo -e "${GREEN}│   ✓  PROCESSO CONCLUÍDO COM SUCESSO!                         │${RESET}"
+    echo -e "${GREEN}│   ✓  PROCESS COMPLETED SUCCESSFULLY!                         │${RESET}"
     echo -e "${GREEN}│                                                              │${RESET}"
-    echo -e "${GREEN}│   O pendrive está pronto para uso no Xbox 360.               │${RESET}"
-    echo -e "${GREEN}│   O dispositivo foi desmontado — pode removê-lo com          │${RESET}"
-    echo -e "${GREEN}│   segurança do computador.                                   │${RESET}"
+    echo -e "${GREEN}│   The USB drive is ready to use on your Xbox 360.            │${RESET}"
+    echo -e "${GREEN}│   The device has been unmounted. You can safely              │${RESET}"
+    echo -e "${GREEN}│   remove it from the computer.                               │${RESET}"
     echo -e "${GREEN}│                                                              │${RESET}"
     printf  "${GREEN}│   Drive: %-52s│${RESET}\n" "$_dev"
     echo -e "${GREEN}│                                                              │${RESET}"
     echo -e "${GREEN}└──────────────────────────────────────────────────────────────┘${RESET}"
     echo ""
-    pause "Pressione Enter para sair..."
+    pause "Press Enter to exit..."
     exit 0
 }
 
-# ── Main ──────────────────────────────────────────────────────────────────────
 main() {
     if (( EUID != 0 )); then
-        echo "Este script deve ser executado como root (sudo)."
+        echo "This script must be run as root (sudo)."
         exit 1
     fi
 
+    check_update "$@"
     check_deps
     mkdir -p "$DOWNLOAD_DIR" "$STAGING_DIR"
 
@@ -344,10 +358,10 @@ main() {
         render_header
         show_summary
 
-        prompt_menu "Selecione uma ação" \
-            "Drive alvo" \
-            "Instalar" \
-            "Sair"
+        prompt_menu "Select an action" \
+            "Target drive" \
+            "Install" \
+            "Exit"
 
         case $REPLY_INDEX in
             0) menu_configure_drive ;;

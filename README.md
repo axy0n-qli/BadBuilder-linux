@@ -57,7 +57,7 @@ sudo pacman -S util-linux dosfstools parted curl jq unzip p7zip unrar
 ```
 #### Download BadBuilder
 ```bash
-cd /tmp (or another path you prefer)
+cd /tmp #or another path you prefer
 git clone https://github.com/axy0n-qli/BadBuilder-linux.git
 cd BadBuilder-linux
 ```
