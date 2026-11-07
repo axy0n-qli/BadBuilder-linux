@@ -39,20 +39,33 @@ Root / Administrator access is required on all platforms.
 
 Download the latest release from the [Releases](https://github.com/Pdawg-bytes/BadBuilder/releases/latest) page and run the `.exe` as Administrator.
 
-### Linux — Bash script (no .NET required)
+### Linux
+
+#### Install dependencies
+```bash
+# Debian/Ubuntu
+sudo apt install util-linux dosfstools parted curl jq unzip p7zip-full unrar
+```
 
 ```bash
-# Install dependencies (Debian/Ubuntu)
-sudo apt install util-linux dosfstools parted curl jq unzip p7zip-full unrar
-
 # Fedora/RHEL
 sudo dnf install util-linux dosfstools parted curl jq unzip p7zip p7zip-plugins unar
-
-# Run
+```
+```bash
+# Arch/Omarchy
+sudo pacman -S util-linux dosfstools parted curl jq unzip p7zip unrar
+```
+#### Download BadBuilder
+```bash
+cd /tmp (or another path you prefer)
+git clone https://github.com/axy0n-qli/BadBuilder-linux.git
+cd BadBuilder-linux
+```
+#### Run
+```bash
 chmod +x BadBuilder.sh
 sudo ./BadBuilder.sh
 ```
-
 
 ## How to Use
 
