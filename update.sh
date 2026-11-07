@@ -7,6 +7,7 @@ REMOTE="origin"
 BRANCH="main"
 EXIT_UP_TO_DATE=0
 EXIT_UPDATED=10
+EXIT_SKIPPED=20
 
 info() { echo -e "\033[1;33m[*]\033[0m $*" >&2; }
 ok()   { echo -e "\033[0;32m[+]\033[0m $*" >&2; }
@@ -23,25 +24,25 @@ run_git() {
 
 if ! command -v git &>/dev/null; then
     warn "git not found, skipping update check."
-    exit $EXIT_UP_TO_DATE
+    exit $EXIT_SKIPPED
 fi
 
 if [[ ! -d .git ]]; then
     warn "Not a git repository, skipping update check."
-    exit $EXIT_UP_TO_DATE
+    exit $EXIT_SKIPPED
 fi
 
 remote_url="$(run_git remote get-url "$REMOTE" 2>/dev/null || true)"
 if [[ -z "$remote_url" ]]; then
     warn "Remote '${REMOTE}' not found, skipping update check."
-    exit $EXIT_UP_TO_DATE
+    exit $EXIT_SKIPPED
 fi
 
 info "Checking for updates: ${remote_url} (${BRANCH})"
 
 if ! run_git fetch --quiet "$REMOTE" "$BRANCH"; then
     warn "Unable to reach ${remote_url}, continuing with the local version."
-    exit $EXIT_UP_TO_DATE
+    exit $EXIT_SKIPPED
 fi
 
 local_rev="$(run_git rev-parse HEAD)"
@@ -60,4 +61,4 @@ if run_git pull --rebase --autostash --quiet "$REMOTE" "$BRANCH"; then
 fi
 
 warn "Update failed, continuing with the local version."
-exit $EXIT_UP_TO_DATE
+exit $EXIT_SKIPPED

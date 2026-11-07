@@ -24,15 +24,7 @@ TARGET_DISK_NAME=""
 TARGET_DISK_SIZE_GB=""
 TARGET_DISK_PATH=""
 MOUNT_POINT=""
-
-cleanup() {
-    if [[ -n "$MOUNT_POINT" ]] && mountpoint -q "$MOUNT_POINT" 2>/dev/null; then
-        sync
-        umount "$MOUNT_POINT" 2>/dev/null || true
-        rmdir "$MOUNT_POINT" 2>/dev/null || true
-    fi
-}
-trap cleanup EXIT
+UPDATE_STATUS="${BADBUILDER_UPDATE_STATUS:-Not checked}"
 
 render_header() {
     clear
@@ -55,6 +47,7 @@ show_summary() {
     printf  "│  %-16s  %-38s│\n" "Drive" \
         "${TARGET_DISK_NAME:-None selected} ${TARGET_DISK_PATH:+($TARGET_DISK_PATH)}"
     printf  "│  %-16s  %-38s│\n" "Source" "archive.org/ABApendrive"
+    printf  "│  %-16s  %-38s│\n" "Update" "$UPDATE_STATUS"
     echo -e "└──────────────────────────────────────────────────────────┘"
     echo ""
 }
@@ -110,6 +103,7 @@ check_deps() {
         echo ""
         echo "Debian/Ubuntu: sudo apt install util-linux dosfstools parted curl jq p7zip-full"
         echo "Fedora/RHEL:   sudo dnf install util-linux dosfstools parted curl jq p7zip p7zip-plugins"
+        echo "Arch/Omarchy:  sudo pacman -S util-linux dosfstools parted curl jq unzip p7zip unrar"
         exit 1
     fi
 }
@@ -207,17 +201,25 @@ eject_drive() {
 
 check_update() {
     [[ "${BADBUILDER_UPDATED:-0}" == "1" ]] && return 0
-    [[ -f "${SCRIPT_DIR}/update.sh" ]] || return 0
+
+    if [[ ! -f "${SCRIPT_DIR}/update.sh" ]]; then
+        UPDATE_STATUS="update.sh missing"
+        return 0
+    fi
 
     local rc=0
     bash "${SCRIPT_DIR}/update.sh" || rc=$?
 
-    if (( rc == 10 )); then
-        msg_ok "Restarting BadBuilder with the new version..."
-        sleep 2
-        export BADBUILDER_UPDATED=1
-        exec bash "${SCRIPT_DIR}/BadBuilder.sh" "$@"
-    fi
+    case $rc in
+        0)  UPDATE_STATUS="Up to date" ;;
+        10)
+            msg_ok "Restarting BadBuilder with the new version..."
+            sleep 2
+            export BADBUILDER_UPDATED=1 BADBUILDER_UPDATE_STATUS="Updated (restarted)"
+            exec bash "${SCRIPT_DIR}/BadBuilder.sh" "$@"
+            ;;
+        *)  UPDATE_STATUS="Check unavailable" ;;
+    esac
     sleep 1
 }
 
@@ -258,7 +260,6 @@ download_usb_content() {
 
     msg_ok "Copying files to the USB drive..."
     copy_dir_contents "$src_dir" "$usb"
-    rm -rf "$stage"
 }
 
 menu_configure_drive() {
