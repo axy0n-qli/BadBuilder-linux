@@ -8,23 +8,24 @@ BadBuilder automates every step of preparing a bootable USB drive for Xbox 360 k
 
 ## Features
 
-| Feature | Windows | Linux (C#) | Linux (`BadBuilder.sh`) |
-|---|:---:|:---:|:---:|
-| FAT32 format | ✅ DiscUtils | ✅ parted + mkfs.fat | ✅ parted + mkfs.fat |
-| Disk enumeration | ✅ WMI | ✅ lsblk | ✅ lsblk |
-| GitHub artifact resolution | ✅ | ✅ | ✅ curl + jq |
-| SHA-256 verification | ✅ | ✅ | ✅ sha256sum |
-| Download cache | ✅ manifest | ✅ manifest | ✅ version + hash |
-| Archive extraction | ✅ SharpCompress | ✅ SharpCompress | ✅ unzip/7z/unrar |
-| BadUpdate exploit | ✅ | ✅ | ✅ |
-| ABadAvatar exploit | ✅ | ✅ | ✅ |
-| ABadAvatar 1.3 | ✅ | ✅ | ✅ |
-| XeUnshackle bootstrap | ✅ | ✅ | ✅ |
-| FreeMyXe bootstrap | ✅ | ✅ | ✅ |
-| Built-in homebrew (Aurora, XeXMenu, Flasher) | ✅ | ✅ | ✅ |
-| Custom homebrew archives | ✅ | ✅ | ✅ |
-| Dashlaunch auto-launch | ✅ | ✅ | ✅ |
-| Dashboard update (2.0.17559.0) | ✅ | ✅ | ✅ |
+| Feature | [Windows](https://github.com/Pdawg-bytes/BadBuilder) | Linux |
+|---|:---:|:---:|
+| FAT32 format | ✅ DiscUtils | ✅ parted + mkfs.fat |
+| Disk enumeration | ✅ WMI | ✅ lsblk |
+| GitHub artifact resolution | ✅ | ✅ curl + jq |
+| SHA-256 verification | ✅ | ✅ sha256sum |
+| Download cache | ✅ manifest | ✅ version + hash |
+| Archive extraction | ✅ SharpCompress | ✅ unzip/7z/unrar |
+| BadUpdate exploit | ✅ | ✅ |
+| ABadAvatar exploit | ✅ | ✅ |
+| ABadAvatar 1.3 | ✅ | ✅ |
+| XeUnshackle bootstrap | ✅ | ✅ |
+| FreeMyXe bootstrap | ✅ | ✅ |
+| Built-in homebrew (Aurora, XeXMenu, Flasher) | ✅ | ✅ |
+| Custom homebrew archives | ✅ | ✅ |
+| Dashlaunch auto-launch | ✅ | ✅ |
+| Dashboard update (2.0.17559.0) | ✅ | ✅ |
+
 
 ---
 
