@@ -36,7 +36,7 @@ Root / Administrator access is required on all platforms.
 
 ### Windows
 
-Download the latest release from the [Releases](../../releases) page and run the `.exe` as Administrator.
+Download the latest release from the [Releases](https://github.com/Pdawg-bytes/BadBuilder/releases/latest) page and run the `.exe` as Administrator.
 
 ### Linux — Bash script (no .NET required)
 
@@ -52,15 +52,6 @@ chmod +x BadBuilder.sh
 sudo ./BadBuilder.sh
 ```
 
-### Linux — C# native binary
-
-```bash
-# Requires .NET 10 SDK
-dotnet publish BadBuilder/BadBuilder.csproj -r linux-x64 -c Release --self-contained
-sudo ./BadBuilder/bin/Release/net10.0/linux-x64/publish/BadBuilder
-```
-
----
 
 ## How to Use
 
@@ -113,20 +104,7 @@ Services          →  Download • Archive • Install • DiskService (platfor
 
 For install and download pipeline flows, see [`docs/FLOWS.md`](docs/FLOWS.md).
 
----
 
-## Building
-
-```bash
-# Debug
-dotnet build BadBuilder/BadBuilder.csproj
-
-# Self-contained Windows x64 release
-dotnet publish BadBuilder/BadBuilder.csproj -r win-x64 -c Release --self-contained
-
-# Self-contained Linux x64 release
-dotnet publish BadBuilder/BadBuilder.csproj -r linux-x64 -c Release --self-contained
-```
 
 ### Dependencies
 
@@ -137,7 +115,6 @@ dotnet publish BadBuilder/BadBuilder.csproj -r linux-x64 -c Release --self-conta
 | `SharpCompress` | zip / 7z / rar archive extraction |
 | `Octokit` | GitHub Releases API client |
 | `System.Management` | Windows WMI disk enumeration (Windows only) |
-
 ---
 
 ## Credits
