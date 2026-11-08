@@ -120,7 +120,7 @@ For install and download pipeline flows, see [`docs/FLOWS.md`](docs/FLOWS.md).
 
 
 
-### Dependencies
+### Dependencies (for Windows)
 
 | Package | Purpose |
 |---|---|
@@ -133,15 +133,16 @@ For install and download pipeline flows, see [`docs/FLOWS.md`](docs/FLOWS.md).
 
 ## Credits
 
+- **Pdawg** - [Original project](https://github.com/Pdawg-bytes/BadBuilder)
+- **Raphael Maria** - [Original linux port](https://github.com/raphaelmaria/BadBuilder)
 - **grimdoomer** — [BadUpdate](https://github.com/grimdoomer/Xbox360BadUpdate)
 - **shutterbug2000** — [ABadAvatar](https://github.com/shutterbug2000/ABadAvatar)
 - **bibarub** — [ABadAvatar 1.3](https://github.com/bibarub/Xbox360BadUpdate)
 - **InvoxiPlayGames** — [FreeMyXe](https://github.com/FreeMyXe/FreeMyXe)
 - **Byrom90** — [XeUnshackle](https://github.com/Byrom90/XeUnshackle)
 - **Swizzy** — [Simple 360 NAND Flasher](https://github.com/Swizzy/XDK_Projects)
-- **Team XeDEV** — XeXMenu
+- **Team XeDEV** — [XeXMenu](https://consolemods.org/wiki/Xbox_360:XeXmenu)
 - **Phoenix** — [Aurora Dashboard](https://phoenix.xboxunity.net/)
-- **Lopobia Faw** — Linux port
 
 ---
 
